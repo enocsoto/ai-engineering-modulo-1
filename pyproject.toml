@@ -1,7 +1,7 @@
 [project]
 name = "ai-engineering-modulo-1"
 version = "0.1.0"
-description = "Async LLM manager with streaming, Pydantic validation, and retries."
+description = "Cliente asíncrono de LLM con validación, modo normal, streaming y reintentos."
 requires-python = ">=3.12"
 dependencies = [
     "pydantic",
@@ -14,4 +14,4 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-py-modules = ["async_llm_manager"]
+py-modules = ["async_llm_manager", "schemas", "clients"]

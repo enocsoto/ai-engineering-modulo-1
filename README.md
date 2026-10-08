@@ -1,10 +1,10 @@
-# Módulo 1 — AsyncLLMManager
+# Módulo 1 — cliente asíncrono de LLM
 
-Gestor asíncrono que elige OpenAI o Anthropic desde la configuración, transmite los tokens en el momento y no se cae si la red falla o el proveedor responde con rate limit.
+Cliente que llama a OpenAI o Anthropic, en una sola respuesta o en streaming. Valida la entrada con Pydantic y reintenta fallos de red sin detener el programa.
 
 ## Cómo correrlo
 
-Requiere Python 3.12 o superior.
+Requiere Python 3.12.
 
 ```bash
 python3.12 -m venv .venv
@@ -12,23 +12,38 @@ python3.12 -m venv .venv
 cp .env.example .env
 ```
 
-Completa `.env` con la clave del proveedor y ejecuta:
+Completa en `.env` la clave del proveedor elegido y ejecuta:
 
 ```bash
-set -a && source .env && set +a
-.venv/bin/python async_llm_manager.py
+.venv/bin/python main.py
 ```
 
-Los tokens salen a medida que llegan. La API key no se imprime: queda en `SecretStr`.
+La pregunta fija es «¿Qué es la entropía?». Primero se imprime la respuesta completa. Después se imprimen los tokens a medida que llegan. Si el proveedor falla, el script muestra el error o lo registra y termina.
 
-## Qué cubre
+## Variables de entorno
+
+| Variable | Uso |
+| --- | --- |
+| `LLM_PROVIDER` | `openai` (por defecto) o `anthropic` |
+| `OPENAI_API_KEY` | Clave de OpenAI. Obligatoria si el proveedor es `openai` |
+| `ANTHROPIC_API_KEY` | Clave de Anthropic. Obligatoria si el proveedor es `anthropic` |
+
+Una clave en blanco o con solo espacios se trata como ausente. El valor no se imprime: queda en `SecretStr`.
+
+`main.py` lee el `.env` del directorio actual y no pisa variables que ya estén exportadas.
+
+## Dónde está cada criterio
 
 | Criterio | Dónde |
 | --- | --- |
-| Abstracción de proveedores | `AsyncLLMManager` arma el cliente según `LLMSettings.provider` |
-| Streaming asíncrono | `stream()` es un generador async y entrega cada token |
-| Validación con Pydantic | `GenerationParams` limita prompt, `temperature` (0 a 2) y `max_tokens` (1 a 4096) |
-| Resiliencia | Reintenta fallos de red y rate limit. Si se agotan, registra el error y sigue |
+| Esquemas Pydantic (`Provider`, `ChatMessage`, `ModelConfig`, `ModelResponse`, `LLMSettings`) | `schemas.py` |
+| `BaseLLMClient`, `OpenAIClient` y `AnthropicClient` | `clients.py` |
+| Modo normal `generate` y streaming `stream` | `clients.py`; la fachada los expone en `AsyncLLMManager` |
+| Fachada `AsyncLLMManager` y lectura del entorno | `async_llm_manager.py` |
+| Reintentos (conexión, timeout y rate limit; sin reintento si ya salió un token o si la clave es inválida) | `clients.py` |
+| Script de ejemplo | `main.py` |
+
+En `generate`, un fallo de red, timeout, rate limit o clave inválida vuelve como `ModelResponse` con `content` vacío y `error` en español. En `stream`, se reintenta solo antes del primer token; si los reintentos se agotan, se registra el fallo y el generador termina.
 
 ## Tests
 
